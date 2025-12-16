@@ -147,6 +147,67 @@ async def get_file_content(project: str, folder: str, filename: str):
     }
 
 
+class FileWriteRequest(BaseModel):
+    content: str
+    append: bool = False  # True = ajouter à la fin, False = remplacer
+
+
+@app.post("/api/file/{project}/{folder}/{filename}")
+async def write_file_content(project: str, folder: str, filename: str, request: FileWriteRequest):
+    """Écrit ou modifie le contenu d'un fichier"""
+    file_path = DATA_PATH / project / folder / filename
+    
+    # Sécurité : vérifier que le chemin reste dans DATA_PATH
+    try:
+        file_path.resolve().relative_to(DATA_PATH.resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Chemin non autorisé")
+    
+    # Créer le dossier si nécessaire
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        if request.append and file_path.exists():
+            # Mode ajout
+            with open(file_path, 'a', encoding='utf-8') as f:
+                f.write("\n\n" + request.content)
+            mode = "ajouté"
+        else:
+            # Mode remplacement ou nouveau fichier
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(request.content)
+            mode = "écrit" if file_path.exists() else "créé"
+        
+        return {
+            "success": True,
+            "message": f"Fichier {mode} avec succès",
+            "path": str(file_path.relative_to(DATA_PATH))
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur d'écriture: {str(e)}")
+
+
+@app.delete("/api/file/{project}/{folder}/{filename}")
+async def delete_file(project: str, folder: str, filename: str):
+    """Supprime un fichier"""
+    file_path = DATA_PATH / project / folder / filename
+    
+    # Sécurité
+    try:
+        file_path.resolve().relative_to(DATA_PATH.resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Chemin non autorisé")
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Fichier non trouvé")
+    
+    try:
+        file_path.unlink()
+        return {"success": True, "message": "Fichier supprimé"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
+
+
 @app.get("/api/models")
 async def get_models():
     """Liste les modèles disponibles"""
@@ -845,6 +906,42 @@ def get_html_interface() -> str:
             margin: 4px 4px 0 0;
         }
         
+        /* Actions sur les messages */
+        .message-actions {
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px dashed var(--border);
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .action-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-dark);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        
+        .action-btn:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+        
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: wait;
+        }
+        
+        .copy-btn:hover { background: #10b981; border-color: #10b981; }
+        .apply-btn:hover { background: #3b82f6; border-color: #3b82f6; }
+        .new-file-btn:hover { background: #8b5cf6; border-color: #8b5cf6; }
+        
         .agent-badge {
             display: inline-block;
             padding: 2px 8px;
@@ -1076,6 +1173,7 @@ def get_html_interface() -> str:
     
     <script>
         let currentProject = 'anomalie2084';
+        let currentFile = null;  // Fichier actuellement ouvert (ex: "personnages/hero.md")
         let fileContentRaw = '';
         let longChatTimer = null;
         let longGraphTimer = null;
@@ -1196,14 +1294,20 @@ def get_html_interface() -> str:
         async function loadFile(folder, filename) {
             try {
                 document.querySelectorAll('.file-item').forEach(el => el.classList.remove('active'));
-                event.target.classList.add('active');
+                if (event && event.target) event.target.classList.add('active');
                 
                 const response = await fetch(`/api/file/${currentProject}/${folder}/${filename}`);
                 const data = await response.json();
                 
-                document.getElementById('pageTitle').textContent = `${folder}/${filename}`;
+                // Tracker le fichier courant
+                currentFile = `${folder}/${filename}`;
+                
+                document.getElementById('pageTitle').textContent = currentFile;
                 fileContentRaw = data.content_html;
                 document.getElementById('fileContent').innerHTML = data.content_html;
+                
+                // Indicateur visuel du fichier ouvert
+                document.getElementById('pageTitle').innerHTML = `📂 ${currentFile} <span style="font-size:11px;color:var(--primary)">(ouvert)</span>`;
             } catch (error) {
                 console.error('Erreur:', error);
             }
@@ -1349,15 +1453,129 @@ def get_html_interface() -> str:
             const label = type === 'user' ? '💭 VOUS' : '✨ ASSISTANT';
             const className = type === 'user' ? 'message-user' : 'message-assistant';
             
+            // Pour les réponses IA, ajouter un bouton d'actions
+            let actionsHtml = '';
+            if (type === 'assistant' && !content.includes('spinner')) {
+                actionsHtml = `
+                    <div class="message-actions">
+                        <button class="action-btn copy-btn" onclick="copyMessageContent(this)" title="Copier">📋 Copier</button>
+                        <button class="action-btn apply-btn" onclick="applyToFile(this)" title="Ajouter au fichier ouvert">📝 Ajouter au fichier</button>
+                        <button class="action-btn new-file-btn" onclick="createNewFile(this)" title="Créer un nouveau fichier">📄 Nouveau fichier</button>
+                    </div>
+                `;
+            }
+            
             div.innerHTML = `
                 <div class="${className}">
                     <div class="message-label">${label}</div>
-                    ${content}
+                    <div class="message-content">${content}</div>
+                    ${actionsHtml}
                 </div>
             `;
             
             container.appendChild(div);
             container.scrollTop = container.scrollHeight;
+        }
+        
+        // Copier le contenu du message
+        function copyMessageContent(btn) {
+            const msgContent = btn.closest('.message-assistant, .message-user').querySelector('.message-content');
+            const text = msgContent.innerText || msgContent.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                btn.textContent = '✅ Copié!';
+                setTimeout(() => btn.textContent = '📋 Copier', 2000);
+            });
+        }
+        
+        // Ajouter au fichier actuellement ouvert
+        async function applyToFile(btn) {
+            if (!currentFile) {
+                alert('Ouvrez d\\'abord un fichier dans la sidebar gauche');
+                return;
+            }
+            
+            const msgContent = btn.closest('.message-assistant').querySelector('.message-content');
+            let text = msgContent.innerText || msgContent.textContent;
+            
+            // Nettoyer les sources et badges
+            text = text.replace(/📚 Sources:.*$/s, '').trim();
+            text = text.replace(/^(Rechercheur|Coherence|Creatif|GraphRAG)\s*/gm, '').trim();
+            
+            if (!confirm(`Ajouter ce contenu à "${currentFile}" ?`)) return;
+            
+            btn.disabled = true;
+            btn.textContent = '⏳...';
+            
+            try {
+                const [folder, filename] = currentFile.includes('/') 
+                    ? currentFile.split('/') 
+                    : ['', currentFile];
+                
+                const response = await fetch(`/api/file/${currentProject}/${folder}/${filename}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: text, append: true })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    btn.textContent = '✅ Ajouté!';
+                    // Recharger le fichier
+                    loadFile(currentFile);
+                } else {
+                    throw new Error(data.detail || 'Erreur');
+                }
+            } catch (err) {
+                alert('Erreur: ' + err.message);
+                btn.textContent = '📝 Ajouter au fichier';
+            }
+            
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.textContent = '📝 Ajouter au fichier';
+            }, 2000);
+        }
+        
+        // Créer un nouveau fichier avec le contenu
+        async function createNewFile(btn) {
+            const folder = prompt('Dossier (ex: personnages, lore, chapitres):', 'notes');
+            if (!folder) return;
+            
+            const filename = prompt('Nom du fichier (avec .md):', 'nouveau.md');
+            if (!filename) return;
+            
+            const msgContent = btn.closest('.message-assistant').querySelector('.message-content');
+            let text = msgContent.innerText || msgContent.textContent;
+            text = text.replace(/📚 Sources:.*$/s, '').trim();
+            
+            btn.disabled = true;
+            btn.textContent = '⏳...';
+            
+            try {
+                const response = await fetch(`/api/file/${currentProject}/${folder}/${filename}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: text, append: false })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    btn.textContent = '✅ Créé!';
+                    // Recharger l'arborescence
+                    loadFileTree();
+                    // Ouvrir le nouveau fichier
+                    setTimeout(() => loadFile(`${folder}/${filename}`), 500);
+                } else {
+                    throw new Error(data.detail || 'Erreur');
+                }
+            } catch (err) {
+                alert('Erreur: ' + err.message);
+            }
+            
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.textContent = '📄 Nouveau fichier';
+            }, 2000);
         }
         
         async function showStats() {
