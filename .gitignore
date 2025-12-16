@@ -1,3 +1,6 @@
+# Données personnelles / Projets d'écriture (garder en local uniquement)
+data/
+
 # Python
 __pycache__/
 *.py[cod]
