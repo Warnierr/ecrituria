@@ -942,6 +942,157 @@ def get_html_interface() -> str:
         .apply-btn:hover { background: #3b82f6; border-color: #3b82f6; }
         .new-file-btn:hover { background: #8b5cf6; border-color: #8b5cf6; }
         
+        /* Actions fichiers */
+        .file-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .separator {
+            color: var(--border);
+            margin: 0 5px;
+        }
+        
+        .danger-btn {
+            color: #f87171 !important;
+        }
+        .danger-btn:hover {
+            background: #ef4444 !important;
+            color: white !important;
+        }
+        
+        .success-btn {
+            background: var(--primary) !important;
+            color: white !important;
+        }
+        .success-btn:hover {
+            background: #059669 !important;
+        }
+        
+        /* Mode édition */
+        .edit-mode {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            gap: 10px;
+        }
+        
+        .edit-textarea {
+            flex: 1;
+            width: 100%;
+            min-height: 400px;
+            padding: 20px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            background: var(--bg-dark);
+            color: var(--text);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            resize: vertical;
+            outline: none;
+        }
+        
+        .edit-textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+        }
+        
+        .edit-toolbar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            padding: 10px;
+            background: var(--bg-dark);
+            border-radius: 8px;
+        }
+        
+        .save-btn {
+            padding: 10px 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .save-btn:hover {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+        
+        .cancel-btn {
+            padding: 10px 20px;
+            background: var(--bg-card);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .cancel-btn:hover {
+            background: #ef4444;
+            color: white;
+            border-color: #ef4444;
+        }
+        
+        .edit-hint {
+            margin-left: auto;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        .edit-btn.active {
+            background: var(--primary) !important;
+            color: white !important;
+        }
+        
+        /* Droits IA */
+        .ai-permission-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .ai-permission-content {
+            background: var(--bg-card);
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            border: 2px solid var(--primary);
+        }
+        
+        .ai-permission-content h3 {
+            color: var(--primary);
+            margin-bottom: 15px;
+        }
+        
+        .ai-permission-preview {
+            background: var(--bg-dark);
+            padding: 15px;
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin: 15px 0;
+            font-size: 13px;
+            white-space: pre-wrap;
+        }
+        
+        .ai-permission-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        
         .agent-badge {
             display: inline-block;
             padding: 2px 8px;
@@ -1105,9 +1256,21 @@ def get_html_interface() -> str:
                 </div>
                 <button class="toolbar-btn" onclick="showStats()">📊 Stats</button>
                 <button class="toolbar-btn" onclick="populateGraph()">🔗 Peupler Graphe</button>
+                
+                <!-- Actions fichier -->
+                <div class="file-actions" id="fileActions" style="display:none;">
+                    <span class="separator">|</span>
+                    <button class="toolbar-btn edit-btn" onclick="toggleEditMode()" id="editBtn">✏️ Éditer</button>
+                    <button class="toolbar-btn" onclick="duplicateFile()">📋 Dupliquer</button>
+                    <button class="toolbar-btn" onclick="renameFile()">✏️ Renommer</button>
+                    <button class="toolbar-btn danger-btn" onclick="deleteFile()">🗑️ Supprimer</button>
+                </div>
+                
+                <button class="toolbar-btn success-btn" onclick="createNewFile()" style="margin-left:auto;">➕ Nouveau fichier</button>
             </div>
             
             <div class="content-area">
+                <!-- Mode lecture -->
                 <div id="fileContent" class="file-viewer">
                     <div class="empty-state">
                         <div class="empty-state-icon">📚</div>
@@ -1120,6 +1283,16 @@ def get_html_interface() -> str:
                             🤖 Agents spécialisés<br>
                             🏠 Support modèles locaux (Ollama)
                         </p>
+                    </div>
+                </div>
+                
+                <!-- Mode édition -->
+                <div id="editMode" class="edit-mode" style="display:none;">
+                    <textarea id="editTextarea" class="edit-textarea" placeholder="Contenu du fichier..."></textarea>
+                    <div class="edit-toolbar">
+                        <button class="save-btn" onclick="saveFile()">💾 Sauvegarder</button>
+                        <button class="cancel-btn" onclick="cancelEdit()">❌ Annuler</button>
+                        <span class="edit-hint">Ctrl+S pour sauvegarder</span>
                     </div>
                 </div>
             </div>
@@ -1291,6 +1464,8 @@ def get_html_interface() -> str:
             }
         }
         
+        let fileContentRawText = '';  // Contenu texte brut pour l'éditeur
+        
         async function loadFile(folder, filename) {
             try {
                 document.querySelectorAll('.file-item').forEach(el => el.classList.remove('active'));
@@ -1302,12 +1477,26 @@ def get_html_interface() -> str:
                 // Tracker le fichier courant
                 currentFile = `${folder}/${filename}`;
                 
-                document.getElementById('pageTitle').textContent = currentFile;
-                fileContentRaw = data.content_html;
+                // Stocker les deux versions du contenu
+                fileContentRaw = data.content_html;      // HTML pour l'affichage
+                fileContentRawText = data.content;       // Texte brut pour l'éditeur
+                
                 document.getElementById('fileContent').innerHTML = data.content_html;
                 
                 // Indicateur visuel du fichier ouvert
                 document.getElementById('pageTitle').innerHTML = `📂 ${currentFile} <span style="font-size:11px;color:var(--primary)">(ouvert)</span>`;
+                
+                // Afficher les boutons d'action
+                document.getElementById('fileActions').style.display = 'flex';
+                
+                // Revenir en mode lecture si on était en mode édition
+                if (isEditMode) {
+                    isEditMode = false;
+                    document.getElementById('fileContent').style.display = 'block';
+                    document.getElementById('editMode').style.display = 'none';
+                    document.getElementById('editBtn').textContent = '✏️ Éditer';
+                    document.getElementById('editBtn').classList.remove('active');
+                }
             } catch (error) {
                 console.error('Erreur:', error);
             }
@@ -1460,7 +1649,7 @@ def get_html_interface() -> str:
                     <div class="message-actions">
                         <button class="action-btn copy-btn" onclick="copyMessageContent(this)" title="Copier">📋 Copier</button>
                         <button class="action-btn apply-btn" onclick="applyToFile(this)" title="Ajouter au fichier ouvert">📝 Ajouter au fichier</button>
-                        <button class="action-btn new-file-btn" onclick="createNewFile(this)" title="Créer un nouveau fichier">📄 Nouveau fichier</button>
+                        <button class="action-btn new-file-btn" onclick="createNewFileFromAI(this)" title="Créer un nouveau fichier">📄 Nouveau fichier</button>
                     </div>
                 `;
             }
@@ -1536,8 +1725,8 @@ def get_html_interface() -> str:
             }, 2000);
         }
         
-        // Créer un nouveau fichier avec le contenu
-        async function createNewFile(btn) {
+        // Créer un nouveau fichier avec le contenu de l'IA
+        async function createNewFileFromAI(btn) {
             const folder = prompt('Dossier (ex: personnages, lore, chapitres):', 'notes');
             if (!folder) return;
             
@@ -1561,10 +1750,8 @@ def get_html_interface() -> str:
                 const data = await response.json();
                 if (data.success) {
                     btn.textContent = '✅ Créé!';
-                    // Recharger l'arborescence
                     loadFileTree();
-                    // Ouvrir le nouveau fichier
-                    setTimeout(() => loadFile(`${folder}/${filename}`), 500);
+                    setTimeout(() => loadFile(folder, filename), 500);
                 } else {
                     throw new Error(data.detail || 'Erreur');
                 }
@@ -1576,6 +1763,242 @@ def get_html_interface() -> str:
                 btn.disabled = false;
                 btn.textContent = '📄 Nouveau fichier';
             }, 2000);
+        }
+        
+        // ========== FONCTIONS ÉDITION UTILISATEUR ==========
+        
+        let isEditMode = false;
+        let originalContent = '';
+        
+        // Créer un nouveau fichier vide (toolbar)
+        async function createNewFile() {
+            const folder = prompt('📁 Dossier (ex: personnages, lore, chapitres):', 'notes');
+            if (!folder) return;
+            
+            const filename = prompt('📄 Nom du fichier (avec .md):', 'nouveau.md');
+            if (!filename) return;
+            
+            const content = `# ${filename.replace('.md', '')}\n\n<!-- Écrivez votre contenu ici -->\n`;
+            
+            try {
+                const response = await fetch(`/api/file/${currentProject}/${folder}/${filename}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content, append: false })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert('✅ Fichier créé !');
+                    loadFileTree();
+                    setTimeout(() => loadFile(folder, filename), 500);
+                } else {
+                    throw new Error(data.detail || 'Erreur');
+                }
+            } catch (err) {
+                alert('❌ Erreur: ' + err.message);
+            }
+        }
+        
+        // Basculer mode édition
+        function toggleEditMode() {
+            if (!currentFile) {
+                alert('Ouvrez d\\'abord un fichier');
+                return;
+            }
+            
+            isEditMode = !isEditMode;
+            const editBtn = document.getElementById('editBtn');
+            const fileContent = document.getElementById('fileContent');
+            const editMode = document.getElementById('editMode');
+            const textarea = document.getElementById('editTextarea');
+            
+            if (isEditMode) {
+                // Passer en mode édition
+                originalContent = fileContentRawText || '';
+                textarea.value = originalContent;
+                fileContent.style.display = 'none';
+                editMode.style.display = 'flex';
+                editBtn.textContent = '👁️ Aperçu';
+                editBtn.classList.add('active');
+                textarea.focus();
+            } else {
+                // Retour mode lecture
+                fileContent.style.display = 'block';
+                editMode.style.display = 'none';
+                editBtn.textContent = '✏️ Éditer';
+                editBtn.classList.remove('active');
+            }
+        }
+        
+        // Sauvegarder les modifications
+        async function saveFile() {
+            if (!currentFile) return;
+            
+            const textarea = document.getElementById('editTextarea');
+            const newContent = textarea.value;
+            
+            if (newContent === originalContent) {
+                alert('Aucune modification détectée');
+                return;
+            }
+            
+            try {
+                const [folder, filename] = currentFile.split('/');
+                const response = await fetch(`/api/file/${currentProject}/${folder}/${filename}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: newContent, append: false })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert('💾 Fichier sauvegardé !');
+                    // Recharger et revenir en mode lecture
+                    await loadFile(folder, filename);
+                    toggleEditMode();
+                } else {
+                    throw new Error(data.detail || 'Erreur');
+                }
+            } catch (err) {
+                alert('❌ Erreur: ' + err.message);
+            }
+        }
+        
+        // Annuler les modifications
+        function cancelEdit() {
+            if (confirm('Annuler les modifications ?')) {
+                document.getElementById('editTextarea').value = originalContent;
+                toggleEditMode();
+            }
+        }
+        
+        // Supprimer le fichier
+        async function deleteFile() {
+            if (!currentFile) return;
+            
+            if (!confirm(`🗑️ Supprimer "${currentFile}" ?\n\nCette action est irréversible.`)) return;
+            
+            try {
+                const [folder, filename] = currentFile.split('/');
+                const response = await fetch(`/api/file/${currentProject}/${folder}/${filename}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert('🗑️ Fichier supprimé');
+                    currentFile = null;
+                    document.getElementById('fileActions').style.display = 'none';
+                    document.getElementById('pageTitle').textContent = 'Sélectionnez un fichier';
+                    document.getElementById('fileContent').innerHTML = '<div class="empty-state"><div class="empty-state-icon">📚</div><h3>Fichier supprimé</h3></div>';
+                    loadFileTree();
+                } else {
+                    throw new Error(data.detail || 'Erreur');
+                }
+            } catch (err) {
+                alert('❌ Erreur: ' + err.message);
+            }
+        }
+        
+        // Renommer le fichier
+        async function renameFile() {
+            if (!currentFile) return;
+            
+            const [folder, oldFilename] = currentFile.split('/');
+            const newFilename = prompt('✏️ Nouveau nom:', oldFilename);
+            
+            if (!newFilename || newFilename === oldFilename) return;
+            
+            try {
+                // Lire le contenu actuel
+                const readResponse = await fetch(`/api/file/${currentProject}/${folder}/${oldFilename}`);
+                const fileData = await readResponse.json();
+                
+                // Créer avec le nouveau nom
+                const createResponse = await fetch(`/api/file/${currentProject}/${folder}/${newFilename}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: fileData.content, append: false })
+                });
+                
+                if ((await createResponse.json()).success) {
+                    // Supprimer l'ancien
+                    await fetch(`/api/file/${currentProject}/${folder}/${oldFilename}`, { method: 'DELETE' });
+                    
+                    alert('✅ Fichier renommé !');
+                    loadFileTree();
+                    setTimeout(() => loadFile(folder, newFilename), 500);
+                }
+            } catch (err) {
+                alert('❌ Erreur: ' + err.message);
+            }
+        }
+        
+        // Dupliquer le fichier
+        async function duplicateFile() {
+            if (!currentFile) return;
+            
+            const [folder, filename] = currentFile.split('/');
+            const baseName = filename.replace('.md', '');
+            const newFilename = prompt('📋 Nom de la copie:', `${baseName}_copie.md`);
+            
+            if (!newFilename) return;
+            
+            try {
+                const readResponse = await fetch(`/api/file/${currentProject}/${folder}/${filename}`);
+                const fileData = await readResponse.json();
+                
+                const createResponse = await fetch(`/api/file/${currentProject}/${folder}/${newFilename}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: fileData.content, append: false })
+                });
+                
+                if ((await createResponse.json()).success) {
+                    alert('📋 Fichier dupliqué !');
+                    loadFileTree();
+                    setTimeout(() => loadFile(folder, newFilename), 500);
+                }
+            } catch (err) {
+                alert('❌ Erreur: ' + err.message);
+            }
+        }
+        
+        // Raccourci clavier Ctrl+S
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 's' && isEditMode) {
+                e.preventDefault();
+                saveFile();
+            }
+            if (e.key === 'Escape' && isEditMode) {
+                cancelEdit();
+            }
+        });
+        
+        // ========== DROITS IA ==========
+        
+        let aiPermissionLevel = 'ask';  // 'ask', 'auto', 'readonly'
+        
+        // Demander permission à l'utilisateur pour l'action IA
+        function askAIPermission(action, targetFile, content) {
+            return new Promise((resolve) => {
+                const modal = document.createElement('div');
+                modal.className = 'ai-permission-modal';
+                modal.innerHTML = `
+                    <div class="ai-permission-content">
+                        <h3>🤖 L'IA veut ${action}</h3>
+                        <p><strong>Fichier:</strong> ${targetFile}</p>
+                        <div class="ai-permission-preview">${content.substring(0, 500)}${content.length > 500 ? '...' : ''}</div>
+                        <div class="ai-permission-buttons">
+                            <button class="cancel-btn" onclick="this.closest('.ai-permission-modal').remove(); window.aiPermissionResolve(false);">❌ Refuser</button>
+                            <button class="save-btn" onclick="this.closest('.ai-permission-modal').remove(); window.aiPermissionResolve(true);">✅ Autoriser</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                window.aiPermissionResolve = resolve;
+            });
         }
         
         async function showStats() {
