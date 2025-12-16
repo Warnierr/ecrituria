@@ -1,0 +1,201 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║                                                                          ║
+║            🚀 DÉMARRAGE IMMÉDIAT - Assistant Fiction RAG 🚀             ║
+║                                                                          ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ ÉTAPE 1 : INSTALLER LES DÉPENDANCES (2 minutes)                         │
+└──────────────────────────────────────────────────────────────────────────┘
+
+Ouvrez PowerShell dans ce dossier (fiction-assistant) et tapez :
+
+    pip install -r requirements.txt
+
+Patientez pendant l'installation...
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ ÉTAPE 2 : CONFIGURER OPENAI (1 minute)                                  │
+└──────────────────────────────────────────────────────────────────────────┘
+
+1. Créez un fichier nommé ".env" dans ce dossier
+
+2. Ajoutez dedans :
+   OPENAI_API_KEY=sk-votre_clé_api_openai
+
+3. Obtenez une clé sur : https://platform.openai.com/api-keys
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ ÉTAPE 3 : TESTER AVEC L'EXEMPLE (2 minutes)                             │
+└──────────────────────────────────────────────────────────────────────────┘
+
+A. INDEXER LE PROJET EXEMPLE :
+
+   Méthode 1 (facile) :
+   
+       index.bat anomalie2084
+
+   Méthode 2 (manuelle) :
+   
+       python -m src.indexer anomalie2084
+
+
+B. LANCER LE CHAT :
+
+   Méthode 1 (facile) :
+   
+       start.bat anomalie2084
+
+   Méthode 2 (manuelle) :
+   
+       python -m src.cli anomalie2084
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ ÉTAPE 4 : ESSAYER ! 🎉                                                   │
+└──────────────────────────────────────────────────────────────────────────┘
+
+Dans le chat, tapez ces questions :
+
+    💭 Qui est Alex Chen ?
+    
+    💭 Décris-moi l'univers d'Anomalie 2084
+    
+    💭 Quelle est la relation entre Alex et Maya ?
+    
+    💭 Propose une scène où Alex utilise ses pouvoirs
+    
+    💭 /help
+
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║                    CRÉER VOTRE PROPRE PROJET                             ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+1. CRÉER LA STRUCTURE :
+
+   mkdir data\mon_projet
+   mkdir data\mon_projet\personnages
+   mkdir data\mon_projet\lore
+   mkdir data\mon_projet\chapitres
+   mkdir data\mon_projet\notes
+
+
+2. AJOUTER VOS FICHIERS :
+
+   Copiez vos fichiers .md ou .txt dans data\mon_projet\
+   (Utilisez les sous-dossiers pour organiser)
+
+
+3. INDEXER :
+
+   python -m src.indexer mon_projet
+
+
+4. UTILISER :
+
+   python -m src.cli mon_projet
+
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║                      COMMANDES DISPONIBLES                               ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+Dans le chat :
+
+    <votre question>      → Poser une question
+    
+    /sources <question>   → Voir les passages sources utilisés
+    
+    /search <mots-clés>   → Rechercher dans vos documents
+    
+    /help                 → Afficher l'aide complète
+    
+    /quit                 → Quitter
+
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║                      EXEMPLES DE QUESTIONS                               ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+🔍 RECHERCHE :
+   "Quelle est la relation entre X et Y ?"
+   "Dans quel chapitre j'ai mentionné cet événement ?"
+   "Rappelle-moi les détails de ce lieu"
+
+✍️ GÉNÉRATION :
+   "Propose 3 idées de scènes pour le prochain chapitre"
+   "Continue ce passage : [votre texte]"
+   "Imagine un dialogue entre X et Y sur..."
+
+📊 SYNTHÈSE :
+   "Résume l'arc narratif du personnage principal"
+   "Quels sont les événements majeurs ?"
+   "Fais-moi un résumé de ce qui s'est passé"
+
+💡 BRAINSTORMING :
+   "Quelles complications pourraient survenir ?"
+   "Suggère des rebondissements cohérents"
+   "Quelles seraient les conséquences de cet événement ?"
+
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║                         DOCUMENTATION                                    ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+📖 LISEZMOI_DABORD.md       → Vue d'ensemble complète
+📖 DEMARRAGE_RAPIDE.md      → Ce guide en version détaillée
+📖 README.md                → Documentation complète du système
+📖 GUIDE_UTILISATION.md     → Cas d'usage et exemples avancés
+📖 INSTALLATION.md          → Installation + dépannage
+📖 ARCHITECTURE.md          → Architecture technique
+
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║                       PROBLÈMES COURANTS                                 ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+❌ "python n'est pas reconnu"
+   → Utilisez "py" au lieu de "python"
+   → Ou ajoutez Python au PATH
+
+❌ "No module named langchain"
+   → Lancez : pip install -r requirements.txt
+
+❌ "OpenAI API key not found"
+   → Vérifiez votre fichier .env
+   → Il doit être à la racine de fiction-assistant/
+
+❌ "L'index n'existe pas"
+   → Lancez d'abord : python -m src.indexer nom_projet
+
+Pour plus de détails → INSTALLATION.md (section Dépannage)
+
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║                         COÛTS (OpenAI)                                   ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+Avec GPT-4o-mini (recommandé) :
+
+   Indexation projet moyen :  ~0,50 $
+   100 questions/réponses :   ~1-2 $
+
+Commencez petit pour tester !
+
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║                    VOUS ÊTES PRÊT ! 🎉                                   ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+Suivez les 4 étapes ci-dessus et lancez-vous !
+
+L'IA se souvient de TOUT votre univers pour que vous puissiez vous 
+concentrer sur la CRÉATION. ✨
+
+Bon courage dans votre écriture ! 📖
+
+

@@ -1,0 +1,11 @@
+# Configuration de l'API OpenAI
+# Copiez ce fichier vers .env et remplissez votre clé API
+
+OPENAI_API_KEY=votre_clé_api_ici
+
+# Optionnel: pour utiliser un autre modèle par défaut
+# DEFAULT_MODEL=gpt-4o-mini
+
+# Optionnel: pour changer la température par défaut
+# DEFAULT_TEMPERATURE=0.7
+

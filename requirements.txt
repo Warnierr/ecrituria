@@ -1,0 +1,52 @@
+# Assistant Fiction RAG - Dépendances
+# Version 2.0 - Ecrituria Evolution
+
+# ===== CORE =====
+langchain>=0.3.0
+langchain-community>=0.3.0
+langchain-openai>=0.2.0
+langchain-text-splitters>=0.3.0
+
+# ===== VECTOR STORES =====
+chromadb>=0.4.22
+# qdrant-client>=1.7.0  # Alternative plus performante (optionnel)
+
+# ===== TEXT PROCESSING =====
+tiktoken>=0.5.2
+rank-bm25>=0.2.2  # Phase 1.1: Recherche BM25
+
+# ===== RERANKING (Phase 1.2) =====
+sentence-transformers>=2.2.0  # Cross-encoders pour reranking
+
+# ===== OPENAI / LLM =====
+openai>=1.10.0
+
+# ===== GRAPH DATABASE (Phase 2) =====
+neo4j>=5.15.0  # Client Neo4j Python
+py2neo>=2021.2.4  # Alternative simplifiée pour Neo4j
+
+# ===== AGENTS (Phase 3) =====
+langgraph>=0.2.0  # Orchestration multi-agents
+
+# ===== LOCAL MODELS (Phase 4) =====
+# ollama  # Installé séparément via ollama.ai
+
+# ===== DOCUMENT LOADERS (Phase 1.4) =====
+pypdf>=3.17.0  # Lecture PDF
+python-docx>=1.1.0  # Lecture DOCX
+unstructured>=0.12.0  # Parsing avancé documents
+
+# ===== UTILITIES =====
+python-dotenv>=1.0.0
+pyyaml>=6.0
+colorama>=0.4.6
+rich>=13.7.0
+
+# ===== WEB INTERFACE =====
+fastapi>=0.109.0
+uvicorn>=0.27.0
+pydantic>=2.5.0
+
+# ===== VISUALIZATION (Phase 5) =====
+# pyvis>=0.3.2  # Visualisation graphe (optionnel)
+

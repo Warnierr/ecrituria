@@ -1,0 +1,110 @@
+# Configuration d'Écrituria v2.0
+# Assistant Fiction RAG avec GraphRAG et agents spécialisés
+
+# ===== INDEXATION =====
+indexing:
+  chunk_size: 1000          # Taille des chunks en caractères
+  chunk_overlap: 150        # Chevauchement entre chunks
+  supported_extensions:
+    - .txt
+    - .md
+    - .pdf
+    - .docx
+
+# ===== RAG =====
+rag:
+  # Modèle par défaut (via OpenRouter)
+  model: "openai/gpt-4o-mini"
+  temperature: 0.7
+  k_results: 5
+  
+  # Recherche hybride (Phase 1.1)
+  hybrid_search:
+    enabled: true
+    bm25_weight: 0.4
+    vector_weight: 0.6
+  
+  # Reranking (Phase 1.2)
+  reranking:
+    enabled: true
+    model: "fast"  # fast, accurate, multilingual
+
+# ===== GRAPHE DE CONNAISSANCES (Phase 2) =====
+graph:
+  # Mode simulation si Neo4j non disponible
+  simulation_mode: true
+  
+  # Configuration Neo4j (si installé)
+  neo4j:
+    uri: "bolt://localhost:7687"
+    user: "neo4j"
+    password: ""
+    database: "neo4j"
+  
+  # Profondeur de traversée par défaut
+  default_depth: 2
+
+# ===== AGENTS (Phase 3) =====
+agents:
+  enabled: true
+  
+  # Agents disponibles
+  available:
+    - rechercheur
+    - coherence
+    - creatif
+  
+  # Workflows prédéfinis
+  workflows:
+    simple:
+      - rechercheur
+    creative:
+      - rechercheur
+      - creatif
+    analysis:
+      - rechercheur
+      - coherence
+
+# ===== PROVIDERS LLM (Phase 4) =====
+llm:
+  # Provider par défaut
+  default_provider: "openrouter"
+  
+  # Préférer les modèles locaux
+  prefer_local: false
+  
+  # Configuration OpenRouter
+  openrouter:
+    base_url: "https://openrouter.ai/api/v1"
+  
+  # Configuration Ollama (local)
+  ollama:
+    base_url: "http://localhost:11434"
+    default_model: "llama3"
+  
+  # Embeddings locaux
+  local_embeddings:
+    enabled: false
+    model: "paraphrase-multilingual-MiniLM-L12-v2"
+
+# ===== INTERFACE WEB (Phase 5) =====
+web:
+  host: "0.0.0.0"
+  port: 8000
+  
+  # Fonctionnalités activées
+  features:
+    graph_visualization: true
+    agent_selection: true
+    model_selection: true
+
+# ===== PROJETS =====
+projects:
+  anomalie2084:
+    description: "Roman de science-fiction dystopique"
+    chunk_size: 1000
+    
+  # Exemple d'autre projet
+  # mon_roman:
+  #   description: "Mon nouveau roman"
+  #   chunk_size: 800
