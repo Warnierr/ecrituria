@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  ecrituria:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ecrituria-app
+    ports:
+      - "8000:8000"  # Port de l'interface web
+    volumes:
+      # Monter les données (tes projets d'écriture)
+      - ./data:/app/data
+      # Monter la base de données (index vectoriel)
+      - ./db:/app/db
+      # Monter le fichier .env (clés API)
+      - ./.env:/app/.env:ro
+      # Optionnel : logs
+      - ./logs:/app/logs
+    environment:
+      # Variables d'environnement (peuvent être surchargées par .env)
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optionnel : Neo4j pour GraphRAG (décommente si tu utilises GraphRAG)
+  # neo4j:
+  #   image: neo4j:5.15-community
+  #   container_name: ecrituria-neo4j
+  #   ports:
+  #     - "7474:7474"  # Interface web Neo4j
+  #     - "7687:7687"  # Port Bolt
+  #   environment:
+  #     - NEO4J_AUTH=neo4j/password123  # Change ce mot de passe !
+  #     - NEO4J_PLUGINS=["apoc"]
+  #   volumes:
+  #     - neo4j_data:/data
+  #     - neo4j_logs:/logs
+  #   restart: unless-stopped
+
+# Volumes nommés (pour Neo4j si activé)
+# volumes:
+#   neo4j_data:
+#   neo4j_logs:
+

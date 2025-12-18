@@ -20,12 +20,67 @@ L'Assistant Fiction RAG est un outil qui :
 
 ## 🚀 Installation rapide
 
-### 1. Prérequis
+### Option 1 : Installation avec Docker 🐳 (Recommandé)
+
+**Avantages :** Isolation complète, fonctionne sur tous les OS, pas de conflits de dépendances.
+
+#### Prérequis
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installé
+- Une clé API OpenAI ou OpenRouter
+
+#### Installation en 3 étapes
+
+```bash
+# 1. Cloner le projet
+git clone https://github.com/Warnierr/ecrituria.git
+cd ecrituria
+
+# 2. Créer le fichier .env
+cp env_example.txt .env
+# Éditer .env et ajouter : OPENAI_API_KEY=sk-votre_clé_ici
+
+# 3. Lancer avec Docker Compose
+docker-compose up -d
+```
+
+**C'est tout !** 🎉 L'application sera accessible sur http://localhost:8000
+
+#### Commandes Docker utiles
+
+```bash
+# Voir les logs
+docker-compose logs -f
+
+# Arrêter l'application
+docker-compose down
+
+# Redémarrer
+docker-compose restart
+
+# Reconstruire l'image (après modification du code)
+docker-compose up -d --build
+
+# Accéder au shell du conteneur
+docker-compose exec ecrituria bash
+```
+
+#### 📦 Volumes Docker
+
+Les données sont montées en volumes, donc :
+- ✅ Tes projets dans `data/` restent sur ton PC
+- ✅ Les bases de données dans `db/` sont persistantes
+- ✅ Tu peux modifier les fichiers depuis l'extérieur du conteneur
+
+---
+
+### Option 2 : Installation classique (Python)
+
+#### 1. Prérequis
 
 - Python 3.10 ou supérieur
 - Une clé API OpenAI ([obtenir une clé](https://platform.openai.com/api-keys))
 
-### 2. Installation
+#### 2. Installation
 
 ```bash
 # Cloner ou télécharger le projet
@@ -35,7 +90,7 @@ cd fiction-assistant
 pip install -r requirements.txt
 ```
 
-### 3. Configuration
+#### 3. Configuration
 
 Créez un fichier `.env` à la racine du projet :
 

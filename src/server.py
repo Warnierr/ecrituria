@@ -87,6 +87,11 @@ async def read_root():
     return get_html_interface()
 
 
+@app.get("/api/health")
+async def health_check():
+    """Endpoint de santé pour Docker healthcheck"""
+    return {"status": "ok", "service": "Écrituria v2.0"}
+
 @app.get("/api/projects")
 async def list_projects():
     """Liste les projets disponibles"""
@@ -1056,30 +1061,94 @@ def get_html_interface() -> str:
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 1000;
+            animation: fadeIn 0.2s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
         
         .ai-permission-content {
             background: var(--bg-card);
-            padding: 30px;
-            border-radius: 12px;
-            max-width: 500px;
+            padding: 25px;
+            border-radius: 16px;
+            max-width: 550px;
+            width: 90%;
             border: 2px solid var(--primary);
+            box-shadow: 0 20px 60px rgba(16, 185, 129, 0.3);
+            animation: slideUp 0.3s ease;
         }
         
-        .ai-permission-content h3 {
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .ai-permission-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .ai-icon {
+            font-size: 32px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .ai-permission-header h3 {
             color: var(--primary);
+            margin: 0;
+            font-size: 18px;
+        }
+        
+        .ai-action-info {
+            background: var(--bg-dark);
+            padding: 15px;
+            border-radius: 10px;
             margin-bottom: 15px;
+        }
+        
+        .ai-action-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+        }
+        
+        .ai-label {
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+        
+        .ai-value {
+            color: var(--text);
+            font-weight: 500;
+            font-size: 13px;
+        }
+        
+        .ai-preview-label {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
         }
         
         .ai-permission-preview {
             background: var(--bg-dark);
             padding: 15px;
-            border-radius: 8px;
+            border-radius: 10px;
             max-height: 200px;
             overflow-y: auto;
             margin: 15px 0;
@@ -1089,8 +1158,52 @@ def get_html_interface() -> str:
         
         .ai-permission-buttons {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             justify-content: flex-end;
+            margin-top: 20px;
+        }
+        
+        .ai-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .ai-btn-cancel {
+            background: var(--bg-dark);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        
+        .ai-btn-cancel:hover {
+            background: #ef4444;
+            color: white;
+            border-color: #ef4444;
+            transform: translateY(-2px);
+        }
+        
+        .ai-btn-accept {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .ai-btn-accept:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+        }
+        
+        .ai-permission-hint {
+            margin-top: 15px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-muted);
+            padding-top: 15px;
+            border-top: 1px solid var(--border);
         }
         
         .agent-badge {
@@ -1272,10 +1385,10 @@ def get_html_interface() -> str:
             <div class="content-area">
                 <!-- Mode lecture -->
                 <div id="fileContent" class="file-viewer">
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📚</div>
-                        <h3>Sélectionnez un fichier</h3>
-                        <p>Choisissez un fichier dans la barre latérale pour afficher son contenu</p>
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📚</div>
+                            <h3>Sélectionnez un fichier</h3>
+                            <p>Choisissez un fichier dans la barre latérale pour afficher son contenu</p>
                         <p style="margin-top: 20px; font-size: 14px; color: var(--text-muted);">
                             <strong>Nouveautés v2.0:</strong><br>
                             🔍 Recherche hybride BM25 + vecteurs<br>
@@ -1294,13 +1407,13 @@ def get_html_interface() -> str:
                         <button class="cancel-btn" onclick="cancelEdit()">❌ Annuler</button>
                         <span class="edit-hint">Ctrl+S pour sauvegarder</span>
                     </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-        
+                
         <!-- Chat Panel -->
-        <div class="chat-panel">
-            <div class="chat-header">
+                <div class="chat-panel">
+                    <div class="chat-header">
                 <h3>💬 Chat IA</h3>
                 <div class="chat-options">
                     <select id="modelSelect" class="model-select"></select>
@@ -1313,29 +1426,29 @@ def get_html_interface() -> str:
                 </div>
                 <div class="chat-help">
                     GraphRAG = graphe + RAG vectoriel. Agents = orchestration (Rechercheur, Coherence, Creatif).
-                </div>
-            </div>
-            
-            <div class="chat-messages" id="chatMessages">
-                <div class="message">
-                    <div class="message-assistant">
+                        </div>
+                    </div>
+                    
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message">
+                            <div class="message-assistant">
                         <div class="message-label">✨ ÉCRITURIA v2.0</div>
                         Bienvenue! Je suis votre assistant d'écriture augmenté.<br><br>
                         <strong>Nouveautés:</strong><br>
                         • Cochez <em>GraphRAG</em> pour utiliser le graphe de connaissances<br>
                         • Cochez <em>Agents</em> pour des réponses multi-agents<br>
                         • Recherche hybride BM25+vecteurs activée par défaut
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-input-area">
+                        <div class="chat-input">
+                            <textarea id="chatInput" rows="3" placeholder="Posez votre question..."></textarea>
+                    <button id="sendButton" class="btn-send" onclick="sendMessage()">Envoyer</button>
+                        </div>
                     </div>
                 </div>
-            </div>
-            
-            <div class="chat-input-area">
-                <div class="chat-input">
-                    <textarea id="chatInput" rows="3" placeholder="Posez votre question..."></textarea>
-                    <button id="sendButton" class="btn-send" onclick="sendMessage()">Envoyer</button>
-                </div>
-            </div>
-        </div>
         
         <div id="globalStatus" class="status hidden">
             <div class="dot"></div>
@@ -1412,7 +1525,7 @@ def get_html_interface() -> str:
                 console.error('Erreur chargement projets:', error);
             }
         }
-        
+
         async function loadModels() {
             try {
                 const response = await fetch('/api/models');
@@ -1568,8 +1681,8 @@ def get_html_interface() -> str:
             input.value = '';
             
             const btn = document.getElementById('sendButton');
-            btn.disabled = true;
-            btn.textContent = '...';
+                btn.disabled = true;
+                btn.textContent = '...';
             
             const loadingId = 'loading-' + Date.now();
             addMessage('assistant', '<div class="spinner"></div>', loadingId);
@@ -1627,8 +1740,8 @@ def get_html_interface() -> str:
                 failProgress('Erreur IA: ' + error.message);
             }
             
-            btn.disabled = false;
-            btn.textContent = 'Envoyer';
+                btn.disabled = false;
+                btn.textContent = 'Envoyer';
             if (longChatTimer) clearTimeout(longChatTimer);
             longChatTimer = null;
         }
@@ -1690,7 +1803,9 @@ def get_html_interface() -> str:
             text = text.replace(/📚 Sources:.*$/s, '').trim();
             text = text.replace(/^(Rechercheur|Coherence|Creatif|GraphRAG)\s*/gm, '').trim();
             
-            if (!confirm(`Ajouter ce contenu à "${currentFile}" ?`)) return;
+            // Modal de confirmation IA
+            const approved = await showAIConfirmModal('ajouter du contenu', currentFile, text, 'append');
+            if (!approved) return;
             
             btn.disabled = true;
             btn.textContent = '⏳...';
@@ -1710,7 +1825,8 @@ def get_html_interface() -> str:
                 if (data.success) {
                     btn.textContent = '✅ Ajouté!';
                     // Recharger le fichier
-                    loadFile(currentFile);
+                    const [f, fn] = currentFile.split('/');
+                    loadFile(f, fn);
                 } else {
                     throw new Error(data.detail || 'Erreur');
                 }
@@ -1981,23 +2097,94 @@ def get_html_interface() -> str:
         let aiPermissionLevel = 'ask';  // 'ask', 'auto', 'readonly'
         
         // Demander permission à l'utilisateur pour l'action IA
-        function askAIPermission(action, targetFile, content) {
+        // Modal de confirmation pour les actions IA
+        function showAIConfirmModal(action, targetFile, content, mode = 'append') {
             return new Promise((resolve) => {
                 const modal = document.createElement('div');
                 modal.className = 'ai-permission-modal';
+                modal.id = 'aiPermissionModal';
+                
+                const modeLabel = mode === 'append' ? '➕ Ajouter à la fin' : 
+                                  mode === 'replace' ? '🔄 Remplacer tout' : '📄 Créer nouveau';
+                const modeColor = mode === 'append' ? '#10b981' : 
+                                  mode === 'replace' ? '#f59e0b' : '#3b82f6';
+                
+                // Escaper le HTML dans le contenu
+                const safeContent = content
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .substring(0, 800);
+                
                 modal.innerHTML = `
                     <div class="ai-permission-content">
-                        <h3>🤖 L'IA veut ${action}</h3>
-                        <p><strong>Fichier:</strong> ${targetFile}</p>
-                        <div class="ai-permission-preview">${content.substring(0, 500)}${content.length > 500 ? '...' : ''}</div>
+                        <div class="ai-permission-header">
+                            <span class="ai-icon">🤖</span>
+                            <h3>L'IA demande l'autorisation</h3>
+                        </div>
+                        
+                        <div class="ai-action-info">
+                            <div class="ai-action-row">
+                                <span class="ai-label">Action:</span>
+                                <span class="ai-value" style="color: ${modeColor}">${modeLabel}</span>
+                            </div>
+                            <div class="ai-action-row">
+                                <span class="ai-label">Fichier:</span>
+                                <span class="ai-value">📄 ${targetFile}</span>
+                            </div>
+                            <div class="ai-action-row">
+                                <span class="ai-label">Taille:</span>
+                                <span class="ai-value">${content.length} caractères</span>
+                            </div>
+                        </div>
+                        
+                        <div class="ai-preview-label">👁️ Aperçu du contenu:</div>
+                        <div class="ai-permission-preview">${safeContent}${content.length > 800 ? '\n\n... (tronqué)' : ''}</div>
+                        
                         <div class="ai-permission-buttons">
-                            <button class="cancel-btn" onclick="this.closest('.ai-permission-modal').remove(); window.aiPermissionResolve(false);">❌ Refuser</button>
-                            <button class="save-btn" onclick="this.closest('.ai-permission-modal').remove(); window.aiPermissionResolve(true);">✅ Autoriser</button>
+                            <button class="ai-btn ai-btn-cancel" id="aiRejectBtn">
+                                ❌ Refuser
+                            </button>
+                            <button class="ai-btn ai-btn-accept" id="aiAcceptBtn">
+                                ✅ Autoriser
+                            </button>
+                        </div>
+                        
+                        <div class="ai-permission-hint">
+                            💡 Vous gardez le contrôle total sur vos fichiers
                         </div>
                     </div>
                 `;
+                
                 document.body.appendChild(modal);
-                window.aiPermissionResolve = resolve;
+                
+                // Event listeners
+                document.getElementById('aiAcceptBtn').onclick = () => {
+                    modal.remove();
+                    resolve(true);
+                };
+                document.getElementById('aiRejectBtn').onclick = () => {
+                    modal.remove();
+                    resolve(false);
+                };
+                
+                // Fermer avec Escape
+                const escHandler = (e) => {
+                    if (e.key === 'Escape') {
+                        modal.remove();
+                        document.removeEventListener('keydown', escHandler);
+                        resolve(false);
+                    }
+                };
+                document.addEventListener('keydown', escHandler);
+                
+                // Clic en dehors ferme
+                modal.onclick = (e) => {
+                    if (e.target === modal) {
+                        modal.remove();
+                        resolve(false);
+                    }
+                };
             });
         }
         
