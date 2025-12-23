@@ -1,0 +1,7 @@
+{
+    "action": "append",
+    "file_path": "notes/test_writer_automatique.md",
+    "instruction": "Ajoute une section de 80 mots intitulée '## La Résistance par le Code' qui explique comment la communauté des hackers utilise l'open-source pour contourner la surveillance de Lutéris.",
+    "preview_only": false,
+    "context_files": []
+}

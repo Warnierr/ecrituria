@@ -1,0 +1,7 @@
+{
+    "action": "create",
+    "file_path": "notes/test_writer_automatique.md",
+    "instruction": "Génère une note de 100 mots sur la technologie open-source dans Anomalie 2084. Explique pourquoi le partage du savoir est crucial pour résister à Lutéris et au contrôle centralisé. Mentionne les Archives et Alex Chen.",
+    "preview_only": false,
+    "context_files": []
+}

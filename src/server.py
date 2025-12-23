@@ -327,6 +327,13 @@ async def chat(message: ChatMessage):
             )
             mode_time = time.time() - start_mode
             print(f"[SERVER] ✓ RAG classique terminé en {mode_time:.2f}s")
+           
+            # 🤖 Agent Auto-Save: Détecter et sauvegarder automatiquement
+            from src.agents import AgentSaver
+            
+            agent = AgentSaver(message.project)
+            ai_answer = result['answer'] if message.show_sources else result
+            auto_save_result = agent.analyze_and_save(message.question, ai_answer)
             
             if message.show_sources:
                 sources = [
@@ -336,12 +343,30 @@ async def chat(message: ChatMessage):
                 total_time = time.time() - start_total
                 print(f"[SERVER] ✅ REQUÊTE TOTALE: {total_time:.2f}s")
                 print("="*70 + "\n")
-                return {"answer": result['answer'], "sources": sources}
+                
+                response = {"answer": result['answer'], "sources": sources}
+                
+                # Ajouter infos auto-save si applicable
+                if auto_save_result.get("auto_saved"):
+                    response["auto_saved"] = True
+                    response["saved_to"] = auto_save_result.get("file_path")
+                    response["backup_created"] = auto_save_result.get("backup_created", False)
+                
+                return response
             
             total_time = time.time() - start_total
             print(f"[SERVER] ✅ REQUÊTE TOTALE: {total_time:.2f}s")
             print("="*70 + "\n")
-            return {"answer": result, "sources": []}
+            
+            response = {"answer": result, "sources": []}
+            
+            # Ajouter infos auto-save si applicable
+            if auto_save_result.get("auto_saved"):
+                response["auto_saved"] = True
+                response["saved_to"] = auto_save_result.get("file_path")
+                response["backup_created"] = auto_save_result.get("backup_created", False)
+            
+            return response
             
     except Exception as e:
         error_time = time.time() - start_total

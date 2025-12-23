@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload - Ecrituria</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/upload.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>📁 Ajouter des fichiers</h1>
+            <p>Glissez-déposez vos fichiers .md ou .txt, ou cliquez pour parcourir</p>
+        </header>
+
+        <main>
+            <!-- Zone de Upload -->
+            <div id="uploadZone" class="upload-zone">
+                <div class="upload-icon">📂</div>
+                <p class="upload-text">Glissez vos fichiers ici</p>
+                <p class="upload-subtext">ou</p>
+                <button id="browseBtn" class="btn-browse">Parcourir</button>
+                <input type="file" id="fileInput" multiple accept=".md,.txt" hidden>
+            </div>
+
+            <!-- Sélecteur de dossier -->
+            <div class="folder-selector">
+                <label>Dossier de destination :</label>
+                <select id="folderSelect">
+                    <option value="notes">📝 notes/</option>
+                    <option value="chapitres">📖 chapitres/</option>
+                    <option value="personnages">👤 personnages/</option>
+                    <option value="lore">🌍 lore/</option>
+                    <option value="intrigue">🎭 intrigue/</option>
+                </select>
+            </div>
+
+            <!-- Liste des fichiers à uploader -->
+            <div id="filesList" class="files-list"></div>
+
+            <!-- Actions -->
+            <div id="actions" class="actions" style="display: none;">
+                <button id="uploadBtn" class="btn-primary">
+                    📤 Ajouter et indexer
+                </button>
+                <button id="cancelBtn" class="btn-secondary">
+                    ✖ Annuler
+                </button>
+            </div>
+
+            <!-- Messages de feedback -->
+            <div id="feedback" class="feedback"></div>
+        </main>
+
+        <footer>
+            <a href="/">← Retour au chat</a>
+        </footer>
+    </div>
+
+    <script src="/static/js/upload.js"></script>
+</body>
+
+</html>

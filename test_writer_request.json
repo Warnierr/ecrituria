@@ -1,0 +1,7 @@
+{
+    "action": "create",
+    "file_path": "notes/test_writer.md",
+    "instruction": "Génère une note de 80 mots présentant l'univers Anomalie 2084. Mentionne le contexte dystopique, Alex Chen et les thèmes principaux.",
+    "preview_only": true,
+    "context_files": []
+}
