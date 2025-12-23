@@ -772,6 +772,236 @@ async def update_api_key(data: ApiKeyUpdate):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ===== WRITER MODE =====
+
+class AIWriteRequest(BaseModel):
+    action: str  # "rewrite", "append", "create", "edit"
+    file_path: str  # Chemin relatif depuis data/project/
+    instruction: str  # Instructions pour l'IA
+    preview_only: bool = True  # Par défaut, juste prévisualiser
+    context_files: list[str] = []  # Fichiers additionnels pour contexte
+
+
+@app.post("/api/ai-write/{project}")
+async def ai_write(project: str, request: AIWriteRequest):
+    """
+    Writer Mode - Génère du contenu avec l'IA pour écrire/modifier des fichiers
+    
+    Actions disponibles:
+    - rewrite: Réécrire complètement le fichier
+    - append: Ajouter à la fin
+    - create: Créer un nouveau fichier
+    - edit: Modifier un passage spécifique
+    """
+    import time
+    import shutil
+    from datetime import datetime
+    
+    start_time = time.time()
+    
+    try:
+        print("="*70)
+        print(f"[WRITER] 📝 Nouvelle demande d'écriture")
+        print(f"[WRITER]    Projet: {project}")
+        print(f"[WRITER]    Action: {request.action}")
+        print(f"[WRITER]    Fichier: {request.file_path}")
+        print(f"[WRITER]    Preview only: {request.preview_only}")
+        print("="*70)
+        
+        file_path = DATA_PATH / project / request.file_path
+        
+        # Sécurité: vérifier que le chemin reste dans DATA_PATH
+        try:
+            file_path.resolve().relative_to(DATA_PATH.resolve())
+        except ValueError:
+            raise HTTPException(status_code=403, detail="Chemin non autorisé")
+        
+        # Charger le contenu actuel si le fichier existe
+        current_content = ""
+        if file_path.exists() and request.action != "create":
+            with open(file_path, 'r', encoding='utf-8') as f:
+                current_content = f.read()
+        
+        # Charger les fichiers de contexte additionnels
+        context_documents = []
+        for ctx_file in request.context_files:
+            ctx_path = DATA_PATH / project / ctx_file
+            if ctx_path.exists():
+                with open(ctx_path, 'r', encoding='utf-8') as f:
+                    context_documents.append({
+                        "file": ctx_file,
+                        "content": f.read()
+                    })
+        
+        # Construire le prompt selon l'action
+        from src.rag import ask
+        
+        if request.action == "rewrite":
+            prompt = f"""Tu dois RÉÉCRIRE COMPLÈTEMENT ce fichier selon ces instructions:
+
+{request.instruction}
+
+CONTENU ACTUEL à réécrire:
+---
+{current_content}
+---
+
+INSTRUCTIONS:
+- Réécris le fichier ENTIER en tenant compte de l'instruction
+- Garde la cohérence avec l'univers Anomalie 2084
+- Maintiens le style narratif
+- Ne génère QUE le nouveau contenu, sans commentaires ni explications
+
+NOUVEAU CONTENU:"""
+
+        elif request.action == "append":
+            prompt = f"""Tu dois AJOUTER du contenu à la fin de ce fichier selon ces instructions:
+
+{request.instruction}
+
+CONTENU ACTUEL du fichier:
+---
+{current_content}
+---
+
+INSTRUCTIONS:
+- Génère UNIQUEMENT le nouveau contenu à ajouter
+- Assure la cohérence avec ce qui précède
+- Respecte le style et le ton
+- Ne répète pas le contenu existant
+- Ne génère QUE le texte à ajouter, sans commentaires
+
+CONTENU À AJOUTER:"""
+
+        elif request.action == "create":
+            prompt = f"""Tu dois CRÉER un nouveau fichier selon ces instructions:
+
+{request.instruction}
+
+FICHIER: {request.file_path}
+
+INSTRUCTIONS:
+- Crée un contenu cohérent avec l'univers Anomalie 2084
+- Respecte les themes et le style narratif
+- Génère un contenu complet et structuré
+- Ne génère QUE le contenu, sans commentaires ni explications
+
+CONTENU DU NOUVEAU FICHIER:"""
+
+        elif request.action == "edit":
+            prompt = f"""Tu dois MODIFIER un passage spécifique de ce fichier selon ces instructions:
+
+{request.instruction}
+
+CONTENU ACTUEL:
+---
+{current_content}
+---
+
+INSTRUCTIONS:
+- Identifie le passage à modifier
+- Applique les changements demandés
+- Génère le fichier COMPLET avec les modifications
+- Maintiens tout le reste inchangé
+- Ne génère QUE le nouveau contenu complet, sans commentaires
+
+CONTENU MODIFIÉ COMPLET:"""
+
+        # Ajouter contexte additionnel si fourni
+        if context_documents:
+            context_str = "\n\nFICHIERS DE CONTEXTE:\n"
+            for doc in context_documents:
+                context_str += f"\n--- {doc['file']} ---\n{doc['content']}\n"
+            prompt = context_str + "\n" + prompt
+        
+        # Générer avec l'IA
+        print(f"[WRITER] 🤖 Génération avec l'IA...")
+        gen_start = time.time()
+        
+        generated_content = ask(
+            project,
+            prompt,
+            use_hybrid=True,
+            use_reranking=False,  # Désactiver pour vitesse
+            show_sources=False
+        )
+        
+        gen_time = time.time() - gen_start
+        print(f"[WRITER] ✓ Contenu généré en {gen_time:.2f}s")
+        print(f"[WRITER]    Taille: {len(generated_content)} caractères")
+        
+        # Si preview_only, retourner sans sauvegarder
+        if request.preview_only:
+            total_time = time.time() - start_time
+            print(f"[WRITER] 👁️  Mode preview - pas de sauvegarde")
+            print(f"[WRITER] ✅ TOTAL: {total_time:.2f}s")
+            print("="*70 + "\n")
+            
+            return {
+                "success": True,
+                "preview": True,
+                "content": generated_content,
+                "original_content": current_content if request.action != "create" else None,
+                "action": request.action,
+                "file_path": request.file_path,
+                "generation_time": gen_time
+            }
+        
+        # Sinon, créer un backup et sauvegarder
+        backup_dir = BASE_DIR / "data" / ".backups" / project
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Backup de l'ancien fichier si existe
+        if file_path.exists():
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_name = f"{file_path.stem}_{timestamp}{file_path.suffix}"
+            backup_path = backup_dir / backup_name
+            shutil.copy2(file_path, backup_path)
+            print(f"[WRITER] 💾 Backup créé: {backup_name}")
+        
+        # Sauvegarder le nouveau contenu
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        if request.action == "append":
+            # Mode ajout
+            with open(file_path, 'a', encoding='utf-8') as f:
+                f.write("\n\n" + generated_content)
+            mode = "ajouté"
+        else:
+            # Mode remplacement ou création
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(generated_content)
+            mode = "écrit" if file_path.exists() else "créé"
+        
+        total_time = time.time() - start_time
+        print(f"[WRITER] 💾 Fichier {mode}: {request.file_path}")
+        print(f"[WRITER] ✅ TOTAL: {total_time:.2f}s")
+        print("="*70 + "\n")
+        
+        return {
+            "success": True,
+            "preview": False,
+            "content": generated_content,
+            "originalcontent": current_content if request.action != "create" else None,
+            "action": request.action,
+            "file_path": request.file_path,
+            "mode": mode,
+            "generation_time": gen_time,
+            "total_time": total_time,
+            "backup_created": file_path.exists()
+        }
+        
+    except Exception as e:
+        error_time = time.time() - start_time
+        print(f"[WRITER] ❌ ERREUR après {error_time:.2f}s")
+        print(f"[WRITER]    Type: {type(e).__name__}")
+        print(f"[WRITER]    Message: {str(e)}")
+        print("="*70 + "\n")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Utilitaires
 def markdown_to_html(content: str) -> str:
     """Conversion Markdown vers HTML basique"""
