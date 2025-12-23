@@ -10,13 +10,59 @@ from langchain_core.documents import Document
 import os
 from dotenv import load_dotenv
 
-# Charger les variables d'environnement
-load_dotenv()
+# Charger les variables d'environnement depuis le bon chemin
+BASE_DIR = Path(__file__).resolve().parent.parent
+ENV_PATH = BASE_DIR / ".env"
+load_dotenv(ENV_PATH)
+
+# S'assurer que la clé est disponible
+if not os.getenv("OPENAI_API_KEY"):
+    # Essayer OPENROUTER_API_KEY comme fallback
+    openrouter_key = os.getenv("OPENROUTER_API_KEY")
+    if openrouter_key:
+        os.environ["OPENAI_API_KEY"] = openrouter_key
+        print(f"[RAG] ✓ Clé API chargée depuis OPENROUTER_API_KEY")
+    else:
+        print(f"[RAG] ⚠️ ATTENTION: Aucune clé API trouvée dans {ENV_PATH}")
+else:
+    print(f"[RAG] ✓ Clé API chargée depuis OPENAI_API_KEY")
 
 
 # Template de prompt personnalisé pour l'écriture de fiction
-FICTION_PROMPT_TEMPLATE = """Tu es un assistant créatif spécialisé dans l'écriture de fiction.
-Tu as accès à l'univers narratif de l'auteur via les passages suivants :
+FICTION_PROMPT_TEMPLATE = """Tu es l'architecte du monde Anomalie 2084, un assistant spécialisé dans l'écriture de science-fiction philosophique.
+
+DIRECTIVES FONDAMENTALES :
+- Tu vérifies systématiquement la cohérence, la continuité, la psychologie, les lois du monde, la symbolique et l'impact émotionnel
+- Tu proposes, mais tu n'imposes jamais
+- Tu signales toute incohérence même légère
+- Tu t'appuies sur les fichiers comme source de vérité
+- Tu privilégies la cohérence au spectaculaire
+- Tu respectes les conséquences aux rebondissements gratuits
+- Tu maintiens la lenteur quand il faut, le silence quand c'est plus fort
+
+CLASSIFICATION DES DOCUMENTS :
+- LORE : vision générale, géographie, histoire, systèmes, lois fondamentales
+- PERSONNAGES : fiches, relations, arcs, psychologie
+- INTRIGUE : arcs narratifs, épisodes, timeline, conflits
+- CHAPITRES : texte narratif, scènes, plans
+- NOTES : idées, recherches, philosophie, structure
+
+THÈMES CENTRAUX À RESPECTER :
+- Open-source vs savoir confisqué
+- Surveillance consentie
+- Liberté contre confort
+- Mémoire contre oubli
+- IA comme héritage culturel
+- Compression de l'histoire
+- Vérité dangereuse
+
+TON NARRATIF :
+- Sombre mais plein d'espoir
+- Pas de "gentils" ou "méchants" simplistes
+- Complexité morale (guerre d'esprit, pas de morale)
+- SF métaphysique, héritage déguisé, open-source narratif
+
+Passages pertinents de l'univers :
 
 {context}
 
@@ -27,6 +73,8 @@ Instructions :
 - Utilise les informations des passages fournis pour maintenir la cohérence
 - Si tu proposes du contenu créatif (scènes, dialogues), reste fidèle au ton et au style
 - Si les passages ne contiennent pas assez d'information, dis-le clairement
+- Signale toute incohérence potentielle
+- Suggère des liens entre concepts si pertinent
 
 Réponse :"""
 
@@ -112,6 +160,7 @@ class RAGEngine:
         """Crée le client d'embeddings selon la configuration."""
         if self.use_openrouter:
             return OpenAIEmbeddings(
+                model="openai/text-embedding-3-small",
                 base_url="https://openrouter.ai/api/v1",
                 default_headers={
                     "HTTP-Referer": "https://github.com/fiction-assistant",
@@ -179,18 +228,32 @@ class RAGEngine:
         Returns:
             Liste de documents triés par pertinence
         """
+        import time
+        
         # Récupérer plus de documents si on fait du reranking
         retrieve_k = k * 3 if self.use_reranking else k
         
         # Recherche hybride ou vectorielle simple
         if self.use_hybrid_search and self.hybrid_searcher:
+            print(f"[RAG]   🔍 Recherche hybride (k={retrieve_k})...")
+            start = time.time()
             docs = self.hybrid_searcher.search(query, k=retrieve_k)
+            search_time = time.time() - start
+            print(f"[RAG]   ✓ Recherche hybride: {search_time:.2f}s ({len(docs)} docs)")
         else:
+            print(f"[RAG]   🔍 Recherche vectorielle (k={retrieve_k})...")
+            start = time.time()
             docs = self.vectordb.similarity_search(query, k=retrieve_k)
+            search_time = time.time() - start
+            print(f"[RAG]   ✓ Recherche vectorielle: {search_time:.2f}s ({len(docs)} docs)")
         
         # Reranking
         if self.use_reranking and self.reranker and docs:
+            print(f"[RAG]   ⚡ Reranking {len(docs)} → {k}...")
+            start = time.time()
             docs = self.reranker.rerank(query, docs, top_k=k)
+            rerank_time = time.time() - start
+            print(f"[RAG]   ✓ Reranking: {rerank_time:.2f}s")
         else:
             docs = docs[:k]
         
@@ -215,14 +278,25 @@ class RAGEngine:
         Returns:
             Réponse (str) ou dict avec answer et sources
         """
+        import time
+        start_total = time.time()
+        
         # Récupérer le contexte
+        print(f"[RAG] 🔍 Démarrage retrieval...")
+        start_retrieval = time.time()
         docs = self.retrieve(question, k=k)
+        retrieval_time = time.time() - start_retrieval
+        print(f"[RAG] ✓ Retrieval terminé en {retrieval_time:.2f}s ({len(docs)} docs)")
         
         # Construire le contexte
+        print(f"[RAG] 📝 Construction du contexte...")
+        start_context = time.time()
         context = "\n\n---\n\n".join([
             f"[Source: {doc.metadata.get('relative_path', 'inconnu')}]\n{doc.page_content}"
             for doc in docs
         ])
+        context_time = time.time() - start_context
+        print(f"[RAG] ✓ Contexte construit en {context_time:.2f}s ({len(context)} chars)")
         
         # Sélectionner le template
         if prompt_template is None:
@@ -230,10 +304,23 @@ class RAGEngine:
         
         # Construire le prompt
         full_prompt = prompt_template.format(context=context, question=question)
+        print(f"[RAG] 📤 Envoi au LLM ({self.model})...")
+        print(f"[RAG]    Taille prompt: {len(full_prompt)} chars")
         
         # Générer la réponse
-        response = self.llm.invoke(full_prompt)
-        answer = response.content if hasattr(response, 'content') else str(response)
+        start_llm = time.time()
+        try:
+            response = self.llm.invoke(full_prompt)
+            llm_time = time.time() - start_llm
+            print(f"[RAG] ✓ LLM répondu en {llm_time:.2f}s")
+            answer = response.content if hasattr(response, 'content') else str(response)
+        except Exception as e:
+            llm_time = time.time() - start_llm
+            print(f"[RAG] ❌ ERREUR LLM après {llm_time:.2f}s: {e}")
+            raise
+        
+        total_time = time.time() - start_total
+        print(f"[RAG] ✅ TOTAL: {total_time:.2f}s (retrieval={retrieval_time:.2f}s, llm={llm_time:.2f}s)")
         
         if show_sources:
             return {

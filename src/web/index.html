@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✨ Écrituria v2.1 - Assistant Fiction RAG</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="logo">
+                <h1>✨ Écrituria</h1>
+                <span>v2.1 - Assistant Fiction RAG</span>
+            </div>
+
+            <div class="project-select">
+                <select id="projectSelect" onchange="loadProject()">
+                    <option value="anomalie2084">📖 Anomalie 2084</option>
+                </select>
+            </div>
+
+            <div class="file-tree" id="fileTree">
+                <div class="empty-state">
+                    <div class="spinner"></div>
+                    <p style="margin-top: 10px;">Chargement...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="toolbar">
+                <h2 id="pageTitle">Bienvenue sur Écrituria v2.1</h2>
+                <div class="highlight-box">
+                    <input id="highlightInput" class="highlight-input" type="text" placeholder="Surligner..." />
+                    <button class="toolbar-btn" onclick="highlightText()">🎯 Surligner</button>
+                    <button class="toolbar-btn" onclick="resetHighlight()">↺ Réinitialiser</button>
+                </div>
+                <button class="toolbar-btn" onclick="showStats()">📊 Stats</button>
+                <button class="toolbar-btn" onclick="populateGraph()">🔗 Peupler Graphe</button>
+
+                <!-- Actions fichier -->
+                <div class="file-actions" id="fileActions" style="display:none;">
+                    <span class="separator">|</span>
+                    <button class="toolbar-btn edit-btn" onclick="toggleEditMode()" id="editBtn">✏️ Éditer</button>
+                    <button class="toolbar-btn" onclick="duplicateFile()">📋 Dupliquer</button>
+                    <button class="toolbar-btn" onclick="renameFile()">✏️ Renommer</button>
+                    <button class="toolbar-btn danger-btn" onclick="deleteFile()">🗑️ Supprimer</button>
+                </div>
+
+                <!-- Nouveau: Upload + Index -->
+                <div class="upload-actions" style="margin-left:auto; display:flex; gap:8px;">
+                    <button class="toolbar-btn config-btn" onclick="openConfigModal()" title="Configuration">⚙️
+                        Configuration</button>
+                    <button class="toolbar-btn upload-btn" onclick="openUploadModal()">📤 Upload</button>
+                    <button class="toolbar-btn index-btn" onclick="triggerReindex()">🔄 Réindexer</button>
+                    <button class="toolbar-btn success-btn" onclick="createNewFile()">➕ Nouveau fichier</button>
+                </div>
+            </div>
+
+            <div class="content-area">
+                <!-- Mode lecture -->
+                <div id="fileContent" class="file-viewer">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📚</div>
+                        <h3>Sélectionnez un fichier</h3>
+                        <p>Choisissez un fichier dans la barre latérale pour afficher son contenu</p>
+                        <p style="margin-top: 20px; font-size: 14px; color: var(--text-muted);">
+                            <strong>Nouveautés v2.1:</strong><br>
+                            📤 Upload de fichiers (PDF, DOCX, MD, TXT)<br>
+                            🔄 Réindexation depuis l'interface<br>
+                            🔍 Recherche hybride BM25 + vecteurs<br>
+                            🔗 Graphe de connaissances (GraphRAG)
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Mode édition -->
+                <div id="editMode" class="edit-mode" style="display:none;">
+                    <textarea id="editTextarea" class="edit-textarea" placeholder="Contenu du fichier..."></textarea>
+                    <div class="edit-toolbar">
+                        <button class="save-btn" onclick="saveFile()">💾 Sauvegarder</button>
+                        <button class="cancel-btn" onclick="cancelEdit()">❌ Annuler</button>
+                        <span class="edit-hint">Ctrl+S pour sauvegarder</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Panel -->
+        <div class="chat-panel">
+            <div class="chat-header">
+                <h3>💬 Chat IA</h3>
+                <div class="chat-options">
+                    <select id="modelSelect" class="model-select"></select>
+                    <label
+                        title="Active le graphe de connaissances (extraction d'entités, contextes reliés) en plus du RAG vectoriel">
+                        <input type="checkbox" id="useGraph"> GraphRAG
+                    </label>
+                    <label
+                        title="Orchestrateur multi-agents (Rechercheur, Coherence, Creatif) pour des réponses chaînées et spécialisées">
+                        <input type="checkbox" id="useAgents"> Agents
+                    </label>
+                </div>
+                <div class="chat-help">
+                    GraphRAG = graphe + RAG vectoriel. Agents = orchestration (Rechercheur, Coherence, Creatif).
+                </div>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+                <div class="message">
+                    <div class="message-assistant">
+                        <div class="message-label">✨ ÉCRITURIA v2.1</div>
+                        Bienvenue! Je suis votre assistant d'écriture augmenté.<br><br>
+                        <strong>Nouveautés:</strong><br>
+                        • 📤 <em>Upload</em> de fichiers directement dans l'interface<br>
+                        • 🔄 <em>Réindexation</em> en un clic<br>
+                        • Cochez <em>GraphRAG</em> pour utiliser le graphe de connaissances<br>
+                        • Cochez <em>Agents</em> pour des réponses multi-agents
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <div class="chat-input">
+                    <textarea id="chatInput" rows="3" placeholder="Posez votre question..."></textarea>
+                    <button id="sendButton" class="btn-send" onclick="sendMessage()">Envoyer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Modal -->
+    <div id="uploadModal" class="modal" style="display:none;">
+        <div class="modal-content upload-modal-content">
+            <div class="modal-header">
+                <h3>📤 Upload de fichiers</h3>
+                <button class="close-btn" onclick="closeUploadModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="upload-zone" id="uploadZone">
+                    <div class="upload-icon">📁</div>
+                    <p>Glissez-déposez vos fichiers ici</p>
+                    <p class="upload-hint">ou cliquez pour sélectionner</p>
+                    <input type="file" id="fileInput" multiple accept=".md,.txt,.pdf,.docx,.doc" style="display:none;">
+                    <p class="upload-formats">Formats: MD, TXT, PDF, DOCX</p>
+                </div>
+                <div class="upload-options">
+                    <label>Dossier cible:</label>
+                    <select id="uploadFolder">
+                        <option value="lore">📚 lore</option>
+                        <option value="personnages">👤 personnages</option>
+                        <option value="chapitres">📖 chapitres</option>
+                        <option value="intrigue">🎭 intrigue</option>
+                        <option value="notes">📝 notes</option>
+                    </select>
+                </div>
+                <div id="uploadProgress" class="upload-progress" style="display:none;">
+                    <div class="progress-text">Upload en cours...</div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="uploadProgressBar"></div>
+                    </div>
+                </div>
+                <div id="uploadResults" class="upload-results"></div>
+            </div>
+            <div class="modal-footer">
+                <label class="auto-index-label">
+                    <input type="checkbox" id="autoReindex" checked> Réindexer après upload
+                </label>
+                <button class="modal-btn cancel" onclick="closeUploadModal()">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Config Modal -->
+    <div id="configModal" class="modal" style="display:none;">
+        <div class="modal-content config-modal-content">
+            <div class="modal-header">
+                <h3>⚙️ Configuration</h3>
+                <button class="close-btn" onclick="closeConfigModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="config-section">
+                    <h4>🔑 Clé API OpenRouter</h4>
+                    <p class="config-description">
+                        Configurez votre clé API OpenRouter pour utiliser différents modèles d'IA.
+                        La clé est stockée dans le fichier <code>.env</code>.
+                    </p>
+
+                    <div class="api-key-display">
+                        <label>Clé actuelle:</label>
+                        <div class="api-key-value">
+                            <input type="password" id="currentApiKey" readonly value="************">
+                            <button class="toggle-visibility-btn" onclick="toggleApiKeyVisibility()"
+                                title="Afficher/Masquer">
+                                👁️
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="api-key-edit" style="margin-top: 20px;">
+                        <label>Nouvelle clé API:</label>
+                        <input type="text" id="newApiKey" class="api-key-input" placeholder="sk-or-v1-...">
+                        <button class="save-api-key-btn" onclick="saveApiKey()">💾 Enregistrer</button>
+                    </div>
+
+                    <div class="config-hint">
+                        💡 Vous pouvez obtenir votre clé API sur <a href="https://openrouter.ai/keys"
+                            target="_blank">openrouter.ai/keys</a>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn cancel" onclick="closeConfigModal()">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Status -->
+    <div id="globalStatus" class="status hidden">
+        <div class="dot"></div>
+        <div class="msg">Prêt</div>
+        <div class="progress-wrap">
+            <div class="progress-bar" id="statusProgress"></div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+
+</html>

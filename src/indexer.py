@@ -30,6 +30,16 @@ if sys.platform == "win32":
 if not os.getenv("OPENAI_API_KEY") and os.getenv("OPENROUTER_API_KEY"):
     os.environ["OPENAI_API_KEY"] = os.getenv("OPENROUTER_API_KEY")
 
+# Détecter automatiquement si la clé est OpenRouter (commence par sk-or-v1-)
+openai_key = os.getenv("OPENAI_API_KEY", "")
+is_openrouter_key = openai_key.startswith("sk-or-v1-") if openai_key else False
+
+# Debug: afficher si la clé est chargée (masquée pour sécurité)
+if openai_key:
+    print(f"✓ Clé API détectée: {openai_key[:10]}... (OpenRouter: {is_openrouter_key})")
+else:
+    print("⚠️  Aucune clé API détectée dans OPENAI_API_KEY")
+
 from src.loaders import load_project_documents, split_documents
 from src.utils.file_hash import FileHashTracker, get_file_hash
 
@@ -48,7 +58,7 @@ class ProjectIndexer:
         project_name: str,
         chunk_size: int = 1000,
         chunk_overlap: int = 150,
-        use_openrouter: bool = True
+        use_openrouter: bool = None
     ):
         """
         Initialise l'indexeur.
@@ -57,7 +67,7 @@ class ProjectIndexer:
             project_name: Nom du projet (dossier dans data/)
             chunk_size: Taille des chunks en caractères
             chunk_overlap: Chevauchement entre chunks
-            use_openrouter: Utiliser OpenRouter pour les embeddings
+            use_openrouter: Utiliser OpenRouter pour les embeddings (None = auto-détection)
         """
         self.project_name = project_name
         self.chunk_size = chunk_size
@@ -70,9 +80,14 @@ class ProjectIndexer:
         # Tracker de fichiers pour l'indexation incrémentale
         self.tracker = FileHashTracker(project_name)
         
+        # Détection automatique d'OpenRouter si non spécifié
+        if use_openrouter is None:
+            use_openrouter = is_openrouter_key
+        
         # Configuration des embeddings
         if use_openrouter:
             self.embeddings = OpenAIEmbeddings(
+                model="text-embedding-ada-002",
                 base_url="https://openrouter.ai/api/v1",
                 default_headers={
                     "HTTP-Referer": "https://github.com/fiction-assistant",

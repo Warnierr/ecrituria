@@ -1,14 +1,17 @@
 """
-Serveur web FastAPI pour l'Assistant Fiction RAG - Ecrituria v2.0
+Serveur web FastAPI pour l'Assistant Fiction RAG - Ecrituria v2.1
 Interface graphique avec visualisation du graphe de connaissances
+Support upload de fichiers et réindexation depuis l'interface
 """
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from pathlib import Path
 import os
 import sys
+import shutil
 from typing import List, Optional, Dict, Any
 import json
 import asyncio
@@ -38,9 +41,9 @@ from src.rag import ask, get_relevant_passages
 from src.llm_providers import get_llm_factory, list_available_models, PRESET_MODELS
 
 app = FastAPI(
-    title="Écrituria v2.0",
-    description="Assistant Fiction RAG avec GraphRAG et agents spécialisés",
-    version="2.0.0"
+    title="Écrituria v2.1",
+    description="Assistant Fiction RAG avec GraphRAG, agents spécialisés et upload de fichiers",
+    version="2.1.0"
 )
 
 # CORS pour le développement
@@ -56,6 +59,10 @@ app.add_middleware(
 PROJECT_NAME = "anomalie2084"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_PATH = BASE_DIR / "data"
+WEB_DIR = Path(__file__).resolve().parent / "web"
+
+# Monter les fichiers statiques
+app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
 
 
 # Modèles Pydantic
@@ -83,8 +90,11 @@ class GraphQuery(BaseModel):
 # Routes API
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
-    """Page principale de l'application Ecrituria v2.0"""
-    return get_html_interface()
+    """Page principale de l'application Ecrituria v2.1"""
+    index_path = WEB_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(str(index_path), media_type="text/html")
+    return HTMLResponse("<h1>Erreur: index.html non trouvé</h1>")
 
 
 @app.get("/api/health")
@@ -247,16 +257,32 @@ async def get_models():
 @app.post("/api/chat")
 async def chat(message: ChatMessage):
     """Envoie une question à l'IA et retourne la réponse"""
+    import time
+    start_total = time.time()
+    
     try:
+        print("="*70)
+        print(f"[SERVER] 📨 Nouvelle requête reçue")
+        print(f"[SERVER]    Question: {message.question[:100]}...")
+        print(f"[SERVER]    Projet: {message.project}")
+        print(f"[SERVER]    Modèle: {message.model or 'default'}")
+        print(f"[SERVER]    Use graph: {message.use_graph}")
+        print(f"[SERVER]    Use agents: {message.use_agents}")
+        print("="*70)
+        
         from dotenv import load_dotenv
         load_dotenv(BASE_DIR / ".env")
         
         # Déterminer le mode
         if message.use_agents:
             # Utiliser l'orchestrateur d'agents
+            print(f"[SERVER] 🤖 Mode: Agents")
+            start_mode = time.time()
             from src.agents.orchestrator import AgentOrchestrator
             orchestrator = AgentOrchestrator(message.project)
             result = orchestrator.run(message.question, show_chain=False)
+            mode_time = time.time() - start_mode
+            print(f"[SERVER] ✓ Agents terminé en {mode_time:.2f}s")
             
             return {
                 "answer": result.get("answer", ""),
@@ -267,9 +293,13 @@ async def chat(message: ChatMessage):
         
         elif message.use_graph:
             # Utiliser GraphRAG
+            print(f"[SERVER] 🕸️  Mode: GraphRAG")
+            start_mode = time.time()
             from src.graph.graph_rag import GraphRAGEngine
             engine = GraphRAGEngine(message.project, model=message.model or "gpt-4o-mini")
             result = engine.ask(message.question, show_sources=message.show_sources)
+            mode_time = time.time() - start_mode
+            print(f"[SERVER] ✓ GraphRAG terminé en {mode_time:.2f}s")
             
             if message.show_sources:
                 return {
@@ -285,6 +315,8 @@ async def chat(message: ChatMessage):
         
         else:
             # RAG classique (avec hybrid search + reranking)
+            print(f"[SERVER] 🔍 Mode: RAG classique")
+            start_mode = time.time()
             result = ask(
                 message.project,
                 message.question,
@@ -293,17 +325,30 @@ async def chat(message: ChatMessage):
                 use_hybrid=True,
                 use_reranking=True
             )
+            mode_time = time.time() - start_mode
+            print(f"[SERVER] ✓ RAG classique terminé en {mode_time:.2f}s")
             
             if message.show_sources:
                 sources = [
                     doc.metadata.get('relative_path', 'source inconnue')
                     for doc in result.get('sources', [])
                 ]
+                total_time = time.time() - start_total
+                print(f"[SERVER] ✅ REQUÊTE TOTALE: {total_time:.2f}s")
+                print("="*70 + "\n")
                 return {"answer": result['answer'], "sources": sources}
             
+            total_time = time.time() - start_total
+            print(f"[SERVER] ✅ REQUÊTE TOTALE: {total_time:.2f}s")
+            print("="*70 + "\n")
             return {"answer": result, "sources": []}
             
     except Exception as e:
+        error_time = time.time() - start_total
+        print(f"[SERVER] ❌ ERREUR après {error_time:.2f}s")
+        print(f"[SERVER]    Type: {type(e).__name__}")
+        print(f"[SERVER]    Message: {str(e)}")
+        print("="*70 + "\n")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
@@ -572,6 +617,158 @@ async def get_project_stats(project: str):
         
         return stats
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ===== UPLOAD & INDEXATION =====
+
+ALLOWED_EXTENSIONS = {".md", ".txt", ".pdf", ".docx", ".doc"}
+
+@app.post("/api/upload/{project}/{folder}")
+async def upload_file(project: str, folder: str, file: UploadFile = File(...)):
+    """Upload un fichier dans un projet"""
+    try:
+        # Vérifier l'extension
+        file_ext = Path(file.filename).suffix.lower()
+        if file_ext not in ALLOWED_EXTENSIONS:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Extension non autorisée. Formats acceptés: {', '.join(ALLOWED_EXTENSIONS)}"
+            )
+        
+        # Chemin de destination
+        dest_folder = DATA_PATH / project / folder
+        dest_folder.mkdir(parents=True, exist_ok=True)
+        
+        dest_path = dest_folder / file.filename
+        
+        # Sécurité: vérifier que le chemin reste dans DATA_PATH
+        try:
+            dest_path.resolve().relative_to(DATA_PATH.resolve())
+        except ValueError:
+            raise HTTPException(status_code=403, detail="Chemin non autorisé")
+        
+        # Sauvegarder le fichier
+        with open(dest_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+        
+        return {
+            "success": True,
+            "message": f"Fichier uploadé: {file.filename}",
+            "path": f"{folder}/{file.filename}",
+            "size": len(content)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/index/{project}")
+async def reindex_project(project: str):
+    """Déclenche la réindexation d'un projet"""
+    try:
+        from src.indexer import update_index
+        
+        result = update_index(project)
+        
+        return {
+            "success": True,
+            "status": result.get("status", "unknown"),
+            "new": result.get("new", 0),
+            "modified": result.get("modified", 0),
+            "deleted": result.get("deleted", 0)
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ===== CONFIGURATION API KEY =====
+
+class ApiKeyUpdate(BaseModel):
+    api_key: str
+
+@app.get("/api/config/apikey")
+async def get_api_key():
+    """Récupère la clé API (masquée) depuis le fichier .env"""
+    try:
+        env_path = BASE_DIR / ".env"
+        api_key = os.getenv("OPENROUTER_API_KEY", "")
+        
+        # Si pas de clé dans l'env, essayer de lire depuis .env
+        if not api_key and env_path.exists():
+            with open(env_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if line.startswith("OPENROUTER_API_KEY="):
+                        api_key = line.split("=", 1)[1].strip()
+                        break
+        
+        # Masquer la clé si elle existe
+        masked_key = ""
+        if api_key:
+            if len(api_key) > 8:
+                masked_key = api_key[:4] + "************" + api_key[-4:]
+            else:
+                masked_key = "************"
+        
+        return {
+            "has_key": bool(api_key),
+            "masked_key": masked_key or "Non configurée"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/config/apikey")
+async def update_api_key(data: ApiKeyUpdate):
+    """Met à jour la clé API dans le fichier .env"""
+    try:
+        env_path = BASE_DIR / ".env"
+        new_key = data.api_key.strip()
+        
+        # Lire le contenu actuel du .env
+        lines = []
+        if env_path.exists():
+            with open(env_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+        
+        # Chercher et remplacer la ligne OPENROUTER_API_KEY
+        key_found = False
+        for i, line in enumerate(lines):
+            if line.startswith("OPENROUTER_API_KEY="):
+                lines[i] = f"OPENROUTER_API_KEY={new_key}\n"
+                key_found = True
+                break
+        
+        # Si la clé n'existe pas, l'ajouter
+        if not key_found:
+            # Ajouter après OPENAI_API_KEY si elle existe
+            inserted = False
+            for i, line in enumerate(lines):
+                if line.startswith("OPENAI_API_KEY="):
+                    lines.insert(i + 1, f"OPENROUTER_API_KEY={new_key}\n")
+                    inserted = True
+                    break
+            if not inserted:
+                lines.append(f"\nOPENROUTER_API_KEY={new_key}\n")
+        
+        # Écrire le fichier
+        with open(env_path, 'w', encoding='utf-8') as f:
+            f.writelines(lines)
+        
+        # Mettre à jour la variable d'environnement pour la session actuelle
+        os.environ["OPENROUTER_API_KEY"] = new_key
+        
+        return {
+            "success": True,
+            "message": "Clé API mise à jour avec succès"
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
